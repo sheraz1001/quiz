@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum QuestionType {
+  SBA
+  MCQ
+  TRUE_FALSE
+  EMQ
+}
+
+enum QuizStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  password          String
+  firstName         String?
+  lastName          String?
+  profilePictureUrl String?
+  role              UserRole           @default(STUDENT)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Relations
+  specialtyId       Int?
+  specialty         Specialty?         @relation(fields: [specialtyId], references: [id])
+  
+  quizSessions      QuizSession[]
+  subscriptions     UserSubscription[]
+
+  @@map("users")
+}
+
+model HealthAuthority {
+  id          Int      @id @default(autoincrement())
+  name        String
+  acronym     String   @unique
+  country     String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  questions         QuestionAuthority[]
+  subscriptionPlans SubscriptionPlan[]
+
+  @@map("health_authorities")
+}
+
+model Specialty {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users             User[]
+  questions         QuestionSpecialty[]
+  subscriptionPlans SubscriptionPlan[]
+
+  @@map("specialties")
+}
+
+model Question {
+  id           String       @id @default(uuid())
+  questionText String       @db.Text
+  questionType QuestionType
+  options      Json         // Array of {text: string, isCorrect: boolean}
+  explanation  String       @db.Text
+  references   String?      @db.Text
+  imageUrl     String?
+  tags         String[]     // Array of strings for sub-topics
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  authorities  QuestionAuthority[]
+  specialties  QuestionSpecialty[]
+  quizAnswers  QuizAnswer[]
+
+  @@map("questions")
+}
+
+model QuestionAuthority {
+  id          String @id @default(uuid())
+  questionId  String
+  authorityId Int
+
+  question  Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authority HealthAuthority @relation(fields: [authorityId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, authorityId])
+  @@map("question_authorities")
+}
+
+model QuestionSpecialty {
+  id          String @id @default(uuid())
+  questionId  String
+  specialtyId Int
+
+  question  Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, specialtyId])
+  @@map("question_specialties")
+}
+
+model QuizSession {
+  id               String     @id @default(uuid())
+  userId           String
+  status           QuizStatus
+  score            Float?
+  timeTakenSeconds Int?
+  settings         Json       // Stores quiz generation settings
+  createdAt        DateTime   @default(now())
+  completedAt      DateTime?
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizAnswers QuizAnswer[]
+
+  @@map("quiz_sessions")
+}
+
+model QuizAnswer {
+  id             String  @id @default(uuid())
+  quizSessionId  String
+  questionId     String
+  selectedOption Json    // The option(s) the user selected
+  isCorrect      Boolean
+  createdAt      DateTime @default(now())
+
+  // Relations
+  quizSession QuizSession @relation(fields: [quizSessionId], references: [id], onDelete: Cascade)
+  question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([quizSessionId, questionId])
+  @@map("quiz_answers")
+}
+
+model SubscriptionPlan {
+  id            Int       @id @default(autoincrement())
+  name          String
+  price         Decimal   @db.Decimal(10, 2)
+  currency      String    @default("USD")
+  durationDays  Int
+  stripePriceId String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  specialtyId Int?
+  authorityId Int?
+  specialty   Specialty?        @relation(fields: [specialtyId], references: [id])
+  authority   HealthAuthority?  @relation(fields: [authorityId], references: [id])
+
+  subscriptions UserSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model UserSubscription {
+  id                   String             @id @default(uuid())
+  userId               String
+  subscriptionPlanId   Int
+  startDate            DateTime
+  endDate              DateTime
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeSubscriptionId String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  // Relations
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionPlan SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id])
+
+  @@map("user_subscriptions")
+}
