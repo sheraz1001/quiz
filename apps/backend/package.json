@@ -38,7 +38,7 @@
     "class-transformer": "^0.5.1",
     "stripe": "^13.0.0",
     "multer": "^1.4.5-lts.1",
-    "@gcc-portal/database": "workspace:*",
+    "@gcc-portal/database": "file:../../packages/database",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1"
   },

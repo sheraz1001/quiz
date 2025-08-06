@@ -35,7 +35,7 @@
     "class-variance-authority": "^0.7.0",
     "tailwind-merge": "^1.14.0",
     "tailwindcss-animate": "^1.0.7",
-    "@gcc-portal/database": "workspace:*"
+    "@gcc-portal/database": "file:../../packages/database"
   },
   "devDependencies": {
     "typescript": "^5",
